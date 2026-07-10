@@ -176,13 +176,17 @@ export default function RegisterStep2Screen() {
 
 /**
  * Chuyển lỗi từ registerPatient thành thông báo tiếng Việt rõ ràng.
- *  - 409: email đã tồn tại (email nhập ở bước 1).
+ *  - 409: email HOẶC số điện thoại đã tồn tại (phân biệt qua detail — Mô hình A chống trùng số).
  *  - 422: sai định dạng — lấy chi tiết từ response (detail có thể là chuỗi hoặc mảng lỗi pydantic).
  */
 function toErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const status = err.response?.status;
     if (status === 409) {
+      const detail409 = err.response?.data?.detail;
+      if (typeof detail409 === 'string' && detail409.includes('Số điện thoại')) {
+        return 'Số điện thoại này đã được đăng ký cho bệnh nhân khác. Vui lòng quay lại bước 1 kiểm tra lại số.';
+      }
       return 'Email này đã được đăng ký. Vui lòng quay lại bước 1 đổi email khác hoặc đăng nhập.';
     }
     if (status === 422) {

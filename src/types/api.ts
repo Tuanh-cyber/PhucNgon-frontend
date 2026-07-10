@@ -228,9 +228,9 @@ export interface TherapistPatientDetail {
   insight: { type: 'ok' | 'warn'; text: string };
 }
 
-/** POST /therapist/patients/claim — body. */
+/** POST /therapist/patients/claim — body (khớp bệnh nhân theo SĐT đã chuẩn hóa, Mô hình A). */
 export interface ClaimPatientRequest {
-  email: string;
+  phone: string;
   aphasia_type?: string;
   hospital_name?: string;
   severity_level?: string;

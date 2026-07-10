@@ -1,11 +1,12 @@
 /**
  * Mục "Bệnh nhân" web bác sĩ — form "NHẬN BỆNH NHÂN" + danh sách bệnh nhân của tôi.
  *
- * Form claim -> POST /therapist/patients/claim:
- *   - email (bắt buộc) + optional: aphasia_type (chip chọn 1), hospital_name,
- *     severity_level (chip), 3 điểm baseline (số 0-100).
+ * Form claim -> POST /therapist/patients/claim (Mô hình A — khớp theo SĐT chuẩn hóa):
+ *   - phone (bắt buộc; +84/chấm/khoảng trắng đều nhận, backend tự chuẩn hóa) + optional:
+ *     aphasia_type (chip chọn 1), hospital_name, severity_level (chip), 3 điểm baseline.
  *   - Kết quả: 200 claimed/updated -> "Đã nhận bệnh nhân" + refresh danh sách;
- *     404 -> "Không tìm thấy... (bệnh nhân cần tự đăng ký trước)"; 409 -> thuộc bác sĩ khác.
+ *     404 -> "Không tìm thấy... (cần đăng ký kèm SĐT trước)"; 422 -> số không hợp lệ;
+ *     409 phân biệt qua detail: trùng số / chưa có plan / thuộc bác sĩ khác.
  * Danh sách <- GET /therapist/me/patients (đơn giản; bảng đầy đủ nằm ở Tổng quan).
  */
 
@@ -32,8 +33,8 @@ const SEVERITIES = ['Nhẹ', 'Trung bình', 'Nặng'];
 export default function DoctorPatientsScreen() {
   const router = useRouter();
 
-  // ── Form claim ──
-  const [email, setEmail] = useState('');
+  // ── Form claim (khớp bệnh nhân theo SĐT — Mô hình A) ──
+  const [phoneInput, setPhoneInput] = useState('');
   const [aphasia, setAphasia] = useState<string | null>(null);
   const [severity, setSeverity] = useState<string | null>(null);
   const [hospital, setHospital] = useState('');
@@ -64,15 +65,15 @@ export default function DoctorPatientsScreen() {
   }
 
   async function onSubmit() {
-    if (!email.trim()) {
-      setMessage({ ok: false, text: 'Vui lòng nhập email bệnh nhân.' });
+    if (!phoneInput.trim()) {
+      setMessage({ ok: false, text: 'Vui lòng nhập số điện thoại bệnh nhân.' });
       return;
     }
     setSubmitting(true);
     setMessage(null);
     try {
       const res = await claimPatient({
-        email: email.trim(),
+        phone: phoneInput.trim(), // backend tự chuẩn hóa (+84/chấm/khoảng trắng đều nhận)
         aphasia_type: aphasia ?? undefined,
         severity_level: severity ?? undefined,
         hospital_name: hospital.trim() || undefined,
@@ -87,21 +88,29 @@ export default function DoctorPatientsScreen() {
             ? `✅ Đã nhận bệnh nhân ${res.full_name}.`
             : `✅ Đã cập nhật hồ sơ bệnh nhân ${res.full_name}.`,
       });
-      setEmail('');
+      setPhoneInput('');
       loadList(); // refresh danh sách ngay
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 404) {
         setMessage({
           ok: false,
-          text: 'Không tìm thấy bệnh nhân với email này (bệnh nhân cần tự đăng ký trước).',
+          text: 'Không tìm thấy bệnh nhân với số này (bệnh nhân cần đăng ký kèm SĐT trước).',
         });
       } else if (axios.isAxiosError(err) && err.response?.status === 409) {
+        // Backend phân biệt 3 loại 409 qua detail: trùng số / chưa có plan / thuộc bác sĩ khác.
         const detail = (err.response.data as { detail?: string })?.detail ?? '';
         setMessage({
           ok: false,
-          text: detail.includes('kế hoạch')
-            ? 'Bệnh nhân chưa có kế hoạch trị liệu.'
-            : 'Bệnh nhân đã thuộc bác sĩ khác.',
+          text: detail.includes('trùng số')
+            ? 'Nhiều bệnh nhân trùng số này — cần xác định thêm (liên hệ hỗ trợ).'
+            : detail.includes('kế hoạch')
+              ? 'Bệnh nhân chưa có kế hoạch trị liệu.'
+              : 'Bệnh nhân đã thuộc bác sĩ khác.',
+        });
+      } else if (axios.isAxiosError(err) && err.response?.status === 422) {
+        setMessage({
+          ok: false,
+          text: 'Số điện thoại không hợp lệ (cần số VN 10-11 chữ số, vd 0912345678).',
         });
       } else {
         setMessage({ ok: false, text: 'Không gửi được yêu cầu. Vui lòng thử lại.' });
@@ -117,18 +126,17 @@ export default function DoctorPatientsScreen() {
       <View style={styles.panel}>
         <Text style={styles.panelTitle}>➕ Nhận bệnh nhân</Text>
         <Text style={styles.hint}>
-          Bệnh nhân cần TỰ ĐĂNG KÝ tài khoản trên app trước; sau đó nhập email của họ để nhận
-          vào danh sách của bạn và điền thông tin chẩn đoán.
+          Bệnh nhân cần ĐĂNG KÝ tài khoản trên app (kèm số điện thoại) trước; sau đó nhập
+          SĐT của họ để nhận vào danh sách của bạn và điền thông tin chẩn đoán.
         </Text>
 
         <TextInput
           style={styles.input}
-          placeholder="Email bệnh nhân (bắt buộc)"
+          placeholder="Số điện thoại bệnh nhân (bắt buộc, vd 0912345678)"
           placeholderTextColor="#999"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
+          keyboardType="phone-pad"
+          value={phoneInput}
+          onChangeText={setPhoneInput}
         />
 
         <Text style={styles.fieldLabel}>Loại aphasia</Text>
