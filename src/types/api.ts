@@ -171,6 +171,81 @@ export interface ProgressDashboard {
   difficult_words: DifficultWord[]; // tối đa 10, rỗng = chưa đủ dữ liệu
 }
 
+// ── Web bác sĩ — /therapist/* (mục 6 API_CONTRACT) ───────────────────────────
+
+/** 1 dòng bảng bệnh nhân của bác sĩ (GET /therapist/me/patients). */
+export interface TherapistPatientItem {
+  patient_id: string;
+  full_name: string;
+  email: string;
+  aphasia_type: string | null;
+  severity_level: string | null;
+  hospital_name: string | null;
+  progress_week: number | null; // % hoàn thành CẤP PLAN (không phải tuần)
+  avg_score_2days: number | null;
+  streak_days: number;
+  sessions_per_week: number; // 0-7, hiển thị "x/7"
+  status: 'good' | 'attention';
+}
+
+/** GET /therapist/me/patients — response (total = tổng SAU filter). */
+export interface TherapistPatientList {
+  total: number;
+  items: TherapistPatientItem[];
+}
+
+/** GET /therapist/dashboard-summary — 4 thẻ + banner. */
+export interface DashboardSummary {
+  total_patients: number;
+  practicing: number;
+  need_attention: number;
+  weekly_completion: number | null;
+  attention_list: { patient_id: string; full_name: string }[];
+}
+
+/** Khối hồ sơ đầu màn chi tiết bệnh nhân. */
+export interface PatientHeader {
+  full_name: string;
+  age: number;
+  aphasia_type: string | null;
+  severity_level: string | null;
+  hospital_name: string | null;
+  doctor_name: string;
+}
+
+/** GET /therapist/patients/{id} — chi tiết 1 bệnh nhân của tôi. */
+export interface TherapistPatientDetail {
+  patient: PatientHeader;
+  dashboard: ProgressDashboard;
+  stats: {
+    accuracy_score: number | null;
+    completion_score: number | null;
+    fluency_score: number | null;
+  };
+  avg_score_day: number | null;
+  sessions_per_week: number;
+  score_delta_vs_last_week: number | null;
+  insight: { type: 'ok' | 'warn'; text: string };
+}
+
+/** POST /therapist/patients/claim — body. */
+export interface ClaimPatientRequest {
+  email: string;
+  aphasia_type?: string;
+  hospital_name?: string;
+  severity_level?: string;
+  accuracy_score?: number | null;
+  completion_score?: number | null;
+  fluency_score?: number | null;
+}
+
+/** POST /therapist/patients/claim — response. */
+export interface ClaimPatientResponse {
+  patient_id: string;
+  full_name: string;
+  status: 'claimed' | 'updated';
+}
+
 // ── Từ vựng flashcard — GET /vocabulary ──────────────────────────────────────
 
 /** 1 từ vựng cho màn flashcard (ảnh + từ + audio phát âm). */

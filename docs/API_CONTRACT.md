@@ -326,6 +326,100 @@ Sắp xếp ổn định theo topic rồi theo từ.
 
 ---
 
+## 6. Therapist — Web bác sĩ (Bước 13.1)
+
+Mô hình: bác sĩ↔bệnh nhân link qua `TherapyPlan.therapist_id` của plan ACTIVE. Có HAI loại
+bệnh nhân song song, đều hợp lệ: **có bác sĩ** (therapist_id=UUID) và **tự do**
+(therapist_id=NULL, tự đăng ký dùng một mình — không thuộc dashboard của bác sĩ nào).
+Cả 3 endpoint yêu cầu đăng nhập role=therapist (khác role → 403).
+
+### POST `/therapist/patients/claim`
+Bác sĩ NHẬN một bệnh nhân đã tự đăng ký (tra theo email) + điền hồ sơ/baseline.
+```json
+{
+  "email": "benhnhan@example.com",
+  "aphasia_type": "Broca",
+  "hospital_name": "BV Chợ Rẫy",
+  "severity_level": "Trung bình",
+  "accuracy_score": 70.0, "completion_score": 55.0, "fluency_score": 40.0
+}
+```
+- Chỉ `email` bắt buộc. `aphasia_type` ∈ `Broca|Wernicke|Anomic|Global|Conduction|Mixed|Khác`
+  (khác → 422). Có ≥1 điểm baseline → tạo Assessment + AssessmentResult (như lúc đăng ký).
+- Field không gửi thì KHÔNG đè lên hồ sơ cũ.
+
+**200:** `{ "patient_id": "uuid", "full_name": "...", "status": "claimed" | "updated" }`
+(`claimed` = vừa gán mới; `updated` = đã là bệnh nhân của tôi, idempotent cập nhật).
+**404:** email không tồn tại / không phải patient. **409:** bệnh nhân chưa có plan, HOẶC
+đã thuộc **bác sĩ khác** (không lộ tên bác sĩ kia).
+
+### GET `/therapist/me/patients` *(13.2 — bảng bệnh nhân, mockup Ảnh 1)*
+Bảng bệnh nhân CỦA bác sĩ đang đăng nhập, kèm số liệu. Query optional: `severity`,
+`aphasia_type`, `status` (`good`|`attention`, khác → 422), `search` (theo tên, không phân biệt
+hoa thường), `limit` (mặc định 50), `offset` (0). `total` = tổng SAU filter.
+```json
+{
+  "total": 2,
+  "items": [
+    { "patient_id": "uuid", "full_name": "Nguyễn Văn Hùng", "email": "...",
+      "aphasia_type": "Broca", "severity_level": "Trung bình", "hospital_name": "BV Chợ Rẫy",
+      "progress_week": 3.3, "avg_score_2days": 85.0, "streak_days": 1,
+      "sessions_per_week": 1, "status": "good" }
+  ]
+}
+```
+Định nghĩa số liệu:
+- `progress_week`: % hoàn thành CẤP PLAN (completion có sẵn — % assignment đã graded); `null` = chưa có dữ liệu.
+- `avg_score_2days`: TB điểm 2 ngày qua (bỏ ngày trống); `null` = không có buổi có điểm.
+- `streak_days`: chuỗi ngày luyện liên tiếp (cùng định nghĩa dashboard bệnh nhân).
+- `sessions_per_week`: số NGÀY có luyện trong 7 ngày gần nhất (0-7, hiển thị "x/7").
+- `status`: `attention` = KHÔNG có buổi graded nào trong 3 ngày qua; ngược lại `good`.
+Bệnh nhân của bác sĩ khác và bệnh nhân tự do KHÔNG BAO GIỜ xuất hiện.
+
+### GET `/therapist/dashboard-summary` *(13.3 — 4 thẻ + banner)*
+Tổng quan tính TRÊN TẬP bệnh nhân của bác sĩ đăng nhập.
+```json
+{
+  "total_patients": 2,
+  "practicing": 1,
+  "need_attention": 1,
+  "weekly_completion": 3.3,
+  "attention_list": [ { "patient_id": "uuid", "full_name": "Lê Thị Mai" } ]
+}
+```
+- `practicing`: số bệnh nhân có ≥1 buổi graded trong 7 ngày qua.
+- `need_attention`: số bệnh nhân KHÔNG có buổi graded nào trong 3 ngày qua (khớp `attention_list`
+  cho banner "N bệnh nhân chưa luyện tập 3 ngày").
+- `weekly_completion`: TB `progress_week` across bệnh nhân (bỏ null); `null` = chưa ai có dữ liệu.
+
+### GET `/therapist/patients/{patient_id}` *(13.4 — chi tiết, mockup Ảnh 2)*
+Chi tiết 1 bệnh nhân CỦA TÔI.
+```json
+{
+  "patient": { "full_name": "Nguyễn Văn Hùng", "age": 64, "aphasia_type": "Broca",
+               "severity_level": "Trung bình", "hospital_name": "BV Chợ Rẫy",
+               "doctor_name": "BS. Trần Thanh Phúc" },
+  "dashboard": { "...": "y hệt GET /patients/me/progress-dashboard (daily_scores 7 + 30 + streak + difficult_words)" },
+  "stats": { "accuracy_score": 85.0, "completion_score": 3.3, "fluency_score": 45.0 },
+  "avg_score_day": 85.0,
+  "sessions_per_week": 1,
+  "score_delta_vs_last_week": null,
+  "insight": { "type": "warn", "text": "Hoàn thành thấp – bệnh nhân bỏ dở nhiều, cân nhắc giảm độ khó." }
+}
+```
+- `age` tính từ date_of_birth; `doctor_name` = tên bác sĩ đang đăng nhập.
+- `stats`: 3 chỉ số thành phần (mục "Phân tích thành phần") — CÙNG nguồn compute_patient_stats
+  với insight; từng field `null` = chưa có dữ liệu.
+- `score_delta_vs_last_week`: TB 7 ngày gần nhất − TB 7 ngày trước đó; `null` nếu 1 trong 2 cửa
+  sổ không có dữ liệu.
+- `insight`: rule-based, chọn tiêu chí YẾU NHẤT dưới ngưỡng 60 trong 3 metric
+  (fluency/accuracy/completion) → `type:"warn"` + câu gợi ý; cả 3 ổn → `type:"ok"`
+  "Tiến triển tốt – duy trì kế hoạch hiện tại."; chưa có dữ liệu → `type:"ok"` "Chưa đủ dữ liệu...".
+**404:** bệnh nhân không tồn tại / của bác sĩ khác / tự do — 404 ĐỒNG NHẤT, không tiết lộ
+bệnh nhân có tồn tại hay không.
+
+---
+
 ## Quy tắc chung cho mọi API
 
 - Mọi lỗi trả về dạng: `{ "detail": "Nội dung lỗi bằng tiếng Việt" }`
