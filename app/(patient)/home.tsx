@@ -105,6 +105,15 @@ export default function HomeScreen() {
           <Text style={styles.startBtnText}>Bắt đầu bài tập hôm nay</Text>
         </Pressable>
 
+        {/* Học từ vựng (flashcard 90 từ) — cùng phong cách khối nổi, màu tím để phân biệt */}
+        <Pressable
+          style={[styles.startBtn, styles.flashcardBtn]}
+          onPress={() => router.push('/(patient)/flashcards')}
+        >
+          <Text style={styles.startBtnIcon}>📚</Text>
+          <Text style={styles.startBtnText}>Học từ vựng</Text>
+        </Pressable>
+
         {/* Dashboard tiến trình */}
         <Text style={styles.section}>Tiến trình của bạn</Text>
         <ProgressDashboard onLoaded={setDash} />
@@ -147,4 +156,6 @@ const styles = StyleSheet.create({
   },
   startBtnIcon: { fontSize: 24 },
   startBtnText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  // Nút "Học từ vựng": cùng khối nổi với startBtn, đổi màu tím
+  flashcardBtn: { backgroundColor: PURPLE, borderBottomColor: '#5C35CC' },
 });

@@ -171,6 +171,18 @@ export interface ProgressDashboard {
   difficult_words: DifficultWord[]; // tối đa 10, rỗng = chưa đủ dữ liệu
 }
 
+// ── Từ vựng flashcard — GET /vocabulary ──────────────────────────────────────
+
+/** 1 từ vựng cho màn flashcard (ảnh + từ + audio phát âm). */
+export interface VocabularyItem {
+  vocab_id: string;
+  word: string; // canonical_word
+  topic: string; // enum value, vd "food_drink"
+  word_type: string; // noun | verb | adjective
+  image_url: string | null; // /static/pictures/...; null nếu thiếu file
+  audio_url: string | null; // /static/vocab-audio/...; null nếu thiếu file
+}
+
 // ── Nội dung chi tiết 1 bài — GET /assignments/{id}/content ─────────────────
 // Khớp app/schemas/content.py backend. Mọi *_url là đường dẫn TƯƠNG ĐỐI (/static/...),
 // null khi file thiếu — dùng buildAssetUrl() để ghép base URL; null -> placeholder/ẩn nút.
