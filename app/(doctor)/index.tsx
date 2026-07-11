@@ -10,7 +10,7 @@
  */
 
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -50,31 +50,45 @@ export default function DoctorOverviewScreen() {
     getDashboardSummary().then(setSummary).catch(() => undefined);
   }, []);
 
-  const loadPatients = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    getMyPatients({
-      search: search || undefined,
-      severity: severity ?? undefined,
-      status: status ?? undefined,
-      limit: PAGE_SIZE,
-      offset,
-    })
-      .then((d) => {
-        setItems(d.items);
-        setTotal(d.total);
-      })
-      .catch(() => setError('Không tải được danh sách bệnh nhân.'))
-      .finally(() => setLoading(false));
-  }, [search, severity, status, offset]);
-
-  useEffect(loadPatients, [loadPatients]);
-  // Quay lại màn (sau khi nhận bệnh nhân...) -> refresh cả 2 khối.
+  // MỘT effect duy nhất tải bảng: chạy khi màn focus (mount/quay lại) VÀ khi đổi
+  // filter/phân trang (deps). TRƯỚC ĐÂY có cả useEffect lẫn useFocusEffect cùng gọi
+  // loadPatients -> mount bắn 2 request giống hệt nhau; request thừa treo tới timeout
+  // 15s rồi cancelled -> catch setError -> render nhánh lỗi ĐÈ LÊN bảng đã có data
+  // ("bảng tự biến mất").
+  //
+  // Chống race/overwrite: cờ `active` — effect cleanup (unmount/refocus/đổi filter)
+  // lật false -> response về muộn (kể cả cancelled/timeout) KHÔNG ghi state nữa.
+  // Lỗi cũng KHÔNG xóa items: bảng đang có dữ liệu thì giữ nguyên, chỉ báo lỗi khi
+  // CHƯA có gì để hiển thị (phân biệt loading / có dữ liệu / rỗng thật ở phần render).
   useFocusEffect(
     useCallback(() => {
+      let active = true;
+      setLoading(true);
       loadSummary();
-      loadPatients();
-    }, [loadSummary, loadPatients]),
+      getMyPatients({
+        search: search || undefined,
+        severity: severity ?? undefined,
+        status: status ?? undefined,
+        limit: PAGE_SIZE,
+        offset,
+      })
+        .then((d) => {
+          if (!active) return; // response cũ/bị hủy -> bỏ, không đè state
+          setItems(d.items);
+          setTotal(d.total);
+          setError(null);
+        })
+        .catch(() => {
+          if (!active) return; // request bị hủy do unmount/đổi filter -> KHÔNG báo lỗi oan
+          setError('Không tải được danh sách bệnh nhân.');
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+      return () => {
+        active = false;
+      };
+    }, [search, severity, status, offset, loadSummary]),
   );
 
   const page = Math.floor(offset / PAGE_SIZE) + 1;
@@ -149,11 +163,13 @@ export default function DoctorOverviewScreen() {
           <Text style={[styles.th, styles.colStatus]}>Trạng thái</Text>
         </View>
 
-        {loading ? (
+        {/* 3 trạng thái tách bạch: loading (chưa có gì) / lỗi (chưa có gì) / rỗng thật.
+            Đang CÓ dữ liệu -> luôn giữ bảng (refresh/lỗi nền không làm bảng biến mất). */}
+        {loading && items.length === 0 ? (
           <View style={styles.tableCenter}>
             <ActivityIndicator color={GREEN} />
           </View>
-        ) : error ? (
+        ) : error && items.length === 0 ? (
           <View style={styles.tableCenter}>
             <Text style={styles.error}>{error}</Text>
           </View>
