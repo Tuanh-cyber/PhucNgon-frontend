@@ -45,8 +45,8 @@ export default function LoginScreen() {
     try {
       const { access_token, role } = await loginApi({ email, password });
       await login(access_token);
-      // Điều hướng theo ROLE: bác sĩ -> web bác sĩ /(doctor); bệnh nhân -> app như cũ.
-      router.replace(role === 'therapist' ? '/(doctor)' : '/(patient)/home');
+      // Điều hướng theo ROLE: bác sĩ -> web bác sĩ /doctor; bệnh nhân -> app như cũ.
+      router.replace(role === 'therapist' ? '/doctor' : '/(patient)/home');
     } catch (err) {
       if (axios.isAxiosError(err)) {
         if (err.response?.status === 401) {

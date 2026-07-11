@@ -183,7 +183,7 @@ export default function DoctorPatientsScreen() {
             <Pressable
               key={p.patient_id}
               style={styles.row}
-              onPress={() => router.push(`/(doctor)/patients/${p.patient_id}` as never)}
+              onPress={() => router.push(`/doctor/patients/${p.patient_id}` as never)}
             >
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowName}>{p.full_name}</Text>

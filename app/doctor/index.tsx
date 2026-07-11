@@ -4,7 +4,7 @@
  *     <- GET /therapist/dashboard-summary
  *   - Banner vàng "N bệnh nhân chưa luyện tập trong 3 ngày qua" <- attention_list
  *   - Bảng bệnh nhân <- GET /therapist/me/patients (filter/search/phân trang = query params,
- *     gọi lại API mỗi lần đổi). Bấm 1 dòng -> /(doctor)/patients/{id}.
+ *     gọi lại API mỗi lần đổi). Bấm 1 dòng -> /doctor/patients/{id}.
  *
  * ⚠️ Nhãn cột tiến độ là "Tiến độ chương trình" (progress_week = % TOÀN PLAN, không phải tuần).
  */
@@ -184,7 +184,7 @@ export default function DoctorOverviewScreen() {
             <Pressable
               key={p.patient_id}
               style={styles.tr}
-              onPress={() => router.push(`/(doctor)/patients/${p.patient_id}` as never)}
+              onPress={() => router.push(`/doctor/patients/${p.patient_id}` as never)}
             >
               <View style={styles.colName}>
                 <Text style={styles.name}>{p.full_name}</Text>

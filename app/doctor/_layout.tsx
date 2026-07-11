@@ -23,11 +23,11 @@ const SIDEBAR_BG = '#1B5E3A';
 const ACTIVE_BG = '#2E7D32';
 
 const MENU: { key: string; icon: string; label: string; href: string; stub?: boolean }[] = [
-  { key: 'overview', icon: '📊', label: 'Tổng quan', href: '/(doctor)' },
-  { key: 'patients', icon: '🧑‍⚕️', label: 'Bệnh nhân', href: '/(doctor)/patients' },
-  { key: 'exercises', icon: '📝', label: 'Bài tập', href: '/(doctor)/stub?title=Bài tập', stub: true },
-  { key: 'reports', icon: '📄', label: 'Báo cáo', href: '/(doctor)/stub?title=Báo cáo', stub: true },
-  { key: 'schedule', icon: '📅', label: 'Lịch hẹn', href: '/(doctor)/stub?title=Lịch hẹn', stub: true },
+  { key: 'overview', icon: '📊', label: 'Tổng quan', href: '/doctor' },
+  { key: 'patients', icon: '🧑‍⚕️', label: 'Bệnh nhân', href: '/doctor/patients' },
+  { key: 'exercises', icon: '📝', label: 'Bài tập', href: '/doctor/stub?title=Bài tập', stub: true },
+  { key: 'reports', icon: '📄', label: 'Báo cáo', href: '/doctor/stub?title=Báo cáo', stub: true },
+  { key: 'schedule', icon: '📅', label: 'Lịch hẹn', href: '/doctor/stub?title=Lịch hẹn', stub: true },
 ];
 
 function initials(name: string): string {
@@ -52,10 +52,12 @@ export default function DoctorLayout() {
     router.replace('/(auth)/login');
   }
 
+  // doctor/ giờ là SEGMENT THẬT (không còn route group ngoặc đơn) -> pathname luôn có
+  // tiền tố /doctor: F5 giữ đúng màn, không còn đụng độ URL "/" với app bệnh nhân.
   function isActive(item: (typeof MENU)[number]): boolean {
-    if (item.key === 'overview') return pathname === '/' || pathname === '';
-    if (item.key === 'patients') return pathname.startsWith('/patients');
-    return item.stub === true && pathname.startsWith('/stub');
+    if (item.key === 'overview') return pathname === '/doctor' || pathname === '/doctor/';
+    if (item.key === 'patients') return pathname.startsWith('/doctor/patients');
+    return item.stub === true && pathname.startsWith('/doctor/stub');
   }
 
   return (

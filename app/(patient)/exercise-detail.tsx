@@ -125,6 +125,16 @@ export default function ExerciseDetailScreen() {
   );
 
   // ── Audio helpers ──────────────────────────────────────────────────────────
+  // MỌI audio đang phát đi qua ref này -> đổi bài / rời màn là dừng được ngay,
+  // không để audio bài cũ kêu chồng lên bài mới (new Audio().play() fire-and-forget
+  // trước đây không dừng được).
+  const playingAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  function stopPlaying() {
+    playingAudioRef.current?.pause();
+    playingAudioRef.current = null;
+  }
+
   /** Phát 1 URL audio từ backend (web: HTML5 Audio). URL null -> báo nhẹ, không crash. */
   function playRemote(url: string | null) {
     const full = buildAssetUrl(url);
@@ -134,24 +144,35 @@ export default function ExerciseDetailScreen() {
     }
     setError(null);
     if (Platform.OS === 'web') {
-      void new Audio(full).play().catch(() => setError('Không phát được audio.'));
+      stopPlaying();
+      const audio = new Audio(full);
+      playingAudioRef.current = audio;
+      void audio.play().catch(() => setError('Không phát được audio.'));
     } else {
       // TODO(mobile): phát audio bằng expo-audio khi test trên điện thoại.
       setError('Bản demo: phát audio hiện chỉ hỗ trợ trên web.');
     }
   }
 
-  // Rời màn giữa chừng -> huỷ ghi âm (tắt mic).
+  // Rời màn giữa chừng -> huỷ ghi âm (tắt mic) + dừng audio đang phát.
   useEffect(() => {
     return () => {
       recorderRef.current?.cancel();
       recorderRef.current = null;
+      stopPlaying();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Nghe và đoán (CẢ 2 mode recognition + repetition): TỰ phát câu hỏi 1 lần, 1 giây sau khi
-  // bài tải xong. Trình duyệt có thể chặn autoplay khi chưa có tương tác người dùng -> nuốt lỗi
-  // im lặng, người dùng vẫn bấm nút nghe lại được.
+  // TỰ PHÁT audio câu hỏi 1 lần, 1 GIÂY sau khi bài tải xong — CHỈ cho "Nghe và đoán"
+  // (command_identification, cả recognition lẫn repetition) vì audio đó là ĐỀ BÀI.
+  // KHÔNG autoplay cho naming (vocab_audio_url = đáp án) hay sentence_building
+  // (sentence_audio_url = câu mẫu, thiết kế "chỉ nghe khi sai") — phát ra là lộ đáp án.
+  //
+  // Autoplay có thể bị trình duyệt CHẶN khi người dùng chưa tương tác với trang
+  // (chính sách autoplay của Chrome/Safari): catch nuốt lỗi im lặng, KHÔNG crash —
+  // nút "🔊 Nghe câu hỏi" luôn hiển thị làm fallback để người dùng tự bấm.
+  // Mobile: chưa cài expo-audio -> bỏ qua autoplay (nút nghe vẫn hiện message hướng dẫn).
   useEffect(() => {
     if (!content || content.exercise_type !== 'command_identification') {
       return;
@@ -159,9 +180,17 @@ export default function ExerciseDetailScreen() {
     const url = buildAssetUrl(content.command_audio_url);
     if (!url || Platform.OS !== 'web') return;
     const timer = setTimeout(() => {
-      void new Audio(url).play().catch(() => undefined);
+      stopPlaying();
+      const audio = new Audio(url);
+      playingAudioRef.current = audio;
+      void audio.play().catch(() => undefined); // autoplay bị chặn -> im lặng, có nút fallback
     }, 1000);
-    return () => clearTimeout(timer);
+    // Đổi bài / rời màn khi CHƯA hết 1s -> huỷ hẹn; đã phát -> dừng audio.
+    return () => {
+      clearTimeout(timer);
+      stopPlaying();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content]);
 
   async function onToggleRecord() {
@@ -198,8 +227,10 @@ export default function ExerciseDetailScreen() {
   function onPlayback() {
     // Phát lại đúng đoạn VỪA GHI từ micro (object URL từ Blob thật).
     if (!audioBlobRef.current || Platform.OS !== 'web') return;
+    stopPlaying();
     const url = getPlaybackUrl(audioBlobRef.current);
     const audio = new Audio(url);
+    playingAudioRef.current = audio;
     audio.onended = () => URL.revokeObjectURL(url);
     void audio.play().catch(() => setError('Không phát lại được bản ghi.'));
   }

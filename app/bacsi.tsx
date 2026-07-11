@@ -2,11 +2,11 @@
  * Cửa BÁC SĨ — route công khai tại /bacsi (bệnh nhân không thấy nút này ở landing;
  * bác sĩ được phát link trực tiếp).
  *
- * 2 tab: "Đăng nhập" (email + mật khẩu -> /auth/login; role therapist -> /(doctor),
+ * 2 tab: "Đăng nhập" (email + mật khẩu -> /auth/login; role therapist -> /doctor,
  * role khác -> app bệnh nhân như role routing chung) và "Đăng ký" (full_name, email,
  * password, license_no BẮT BUỘC; phone/specialization optional ->
  * POST /auth/register/therapist — backend KHÔNG nhận qualification/organization).
- * Đăng ký trả token -> AUTO-LOGIN -> thẳng /(doctor).
+ * Đăng ký trả token -> AUTO-LOGIN -> thẳng /doctor.
  */
 
 import axios from 'axios';
@@ -53,7 +53,7 @@ export default function DoctorGateScreen() {
       const { access_token, role } = await loginApi({ email: email.trim(), password });
       await login(access_token);
       // Role routing thống nhất với màn login chung.
-      router.replace(role === 'therapist' ? '/(doctor)' : '/(patient)/home');
+      router.replace(role === 'therapist' ? '/doctor' : '/(patient)/home');
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
         setError('Email hoặc mật khẩu không đúng.');
@@ -83,7 +83,7 @@ export default function DoctorGateScreen() {
       });
       // Backend trả token ngay -> auto-login, vào thẳng dashboard bác sĩ.
       await login(access_token);
-      router.replace('/(doctor)');
+      router.replace('/doctor');
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 409) {
         setError('Email này đã được đăng ký. Chuyển sang tab Đăng nhập.');
