@@ -1,9 +1,10 @@
 /**
  * Bottom navigation dùng chung cho các màn bệnh nhân — row 4 mục đơn giản
  * (KHÔNG dùng tab navigator phức tạp, theo phạm vi đã chốt):
- *   Trang chủ / Bài tập / Lịch / Đăng xuất.
+ *   Trang chủ / Bài tập / Lịch / Tài khoản.
  *
- * Mục "Tiến trình" đã BỎ — dashboard tiến trình nằm ngay trên Trang chủ.
+ * "Đăng xuất" đã chuyển VÀO màn Tài khoản (cuối danh sách, có bước xác nhận) —
+ * tab 👤 giờ mở màn Tài khoản thay vì logout thẳng (an toàn hơn cho người lớn tuổi).
  * "Bài tập" mở luồng chọn bài 3 bước (chọn dạng -> chọn chủ đề -> danh sách bài).
  *
  * active: đánh dấu mục thuộc màn hiện tại.
@@ -12,26 +13,19 @@
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { useAuth } from '@/src/context/AuthContext';
-
 const GREEN = '#2E7D32';
 
-export type NavKey = 'home' | 'exercises' | 'schedule';
+export type NavKey = 'home' | 'exercises' | 'schedule' | 'account';
 
 const ITEMS: { key: NavKey; icon: string; label: string; href: string }[] = [
   { key: 'home', icon: '🏠', label: 'Trang chủ', href: '/(patient)/home' },
   { key: 'exercises', icon: '✏️', label: 'Bài tập', href: '/(patient)/select-type' },
   { key: 'schedule', icon: '📅', label: 'Lịch', href: '/(patient)/schedule' },
+  { key: 'account', icon: '👤', label: 'Tài khoản', href: '/(patient)/account' },
 ];
 
 export function BottomNav({ active }: { active: NavKey }) {
   const router = useRouter();
-  const { logout } = useAuth();
-
-  async function onLogout() {
-    await logout();
-    router.replace('/');
-  }
 
   return (
     <View style={styles.bar}>
@@ -50,10 +44,6 @@ export function BottomNav({ active }: { active: NavKey }) {
           </Pressable>
         );
       })}
-      <Pressable style={styles.item} onPress={onLogout}>
-        <Text style={styles.icon}>👤</Text>
-        <Text style={styles.label}>Đăng xuất</Text>
-      </Pressable>
     </View>
   );
 }

@@ -45,3 +45,12 @@ export async function getMe(skipRedirectOn401 = false): Promise<MeResponse> {
   });
   return res.data;
 }
+
+/** POST /auth/change-password — user đang đăng nhập tự đổi mật khẩu. 400 = current sai. */
+export async function changePassword(body: {
+  current_password: string;
+  new_password: string;
+}): Promise<{ message: string }> {
+  const res = await apiClient.post<{ message: string }>('/auth/change-password', body);
+  return res.data;
+}

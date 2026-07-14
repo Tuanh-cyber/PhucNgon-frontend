@@ -19,3 +19,9 @@ export async function getProgressDashboard(): Promise<ProgressDashboard> {
   const res = await apiClient.get<ProgressDashboard>('/patients/me/progress-dashboard');
   return res.data;
 }
+
+/** GET /patients/me/profile — hồ sơ hiển thị ở màn Tài khoản (chỉ xem). */
+export async function getMyProfile(): Promise<import('@/src/types/api').PatientProfile> {
+  const res = await apiClient.get('/patients/me/profile');
+  return res.data;
+}

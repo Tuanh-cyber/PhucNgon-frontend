@@ -356,3 +356,15 @@ export interface AttemptSubmitResponse {
 export interface ApiError {
   detail: string;
 }
+
+// ── Hồ sơ bệnh nhân — GET /patients/me/profile (màn Tài khoản) ───────────────
+export interface PatientProfile {
+  full_name: string;
+  email: string;
+  phone_number: string | null;
+  date_of_birth: string; // YYYY-MM-DD
+  gender: string; // male | female | other
+  severity_level: string | null;
+  aphasia_type: string | null;
+  hospital_name: string | null;
+}
