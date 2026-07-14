@@ -368,3 +368,15 @@ export interface PatientProfile {
   aphasia_type: string | null;
   hospital_name: string | null;
 }
+
+// ── Lịch hẹn — GET /patients/me/appointments ─────────────────────────────────
+/** 1 lịch hẹn của bệnh nhân. Giờ là UTC ISO — FE hiển thị theo giờ máy. */
+export interface AppointmentItem {
+  appointment_id: string;
+  starts_at: string; // ISO 8601 UTC
+  ends_at: string;
+  location: string;
+  room: string | null;
+  note: string | null;
+  doctor_name: string;
+}
