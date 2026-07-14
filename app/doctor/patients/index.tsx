@@ -1,9 +1,10 @@
 /**
  * Mục "Bệnh nhân" web bác sĩ — form "NHẬN BỆNH NHÂN" + danh sách bệnh nhân của tôi.
  *
- * Form claim -> POST /therapist/patients/claim (Mô hình A — khớp theo SĐT chuẩn hóa):
- *   - phone (bắt buộc; +84/chấm/khoảng trắng đều nhận, backend tự chuẩn hóa) + optional:
- *     aphasia_type (chip chọn 1), hospital_name, severity_level (chip), 3 điểm baseline.
+ * Form claim TỐI GIẢN -> POST /therapist/patients/claim (Mô hình A — khớp theo SĐT chuẩn hóa):
+ *   - CHỈ 1 ô SĐT (bắt buộc; +84/chấm/khoảng trắng đều nhận, backend tự chuẩn hóa).
+ *     Body gửi đi CHỈ { phone } — các field hồ sơ (aphasia/hospital/severity/baseline)
+ *     backend nhận optional nên bỏ khỏi UI không cần đổi backend; bổ sung hồ sơ tính sau.
  *   - Kết quả: 200 claimed/updated -> "Đã nhận bệnh nhân" + refresh danh sách;
  *     404 -> "Không tìm thấy... (cần đăng ký kèm SĐT trước)"; 422 -> số không hợp lệ;
  *     409 phân biệt qua detail: trùng số / chưa có plan / thuộc bác sĩ khác.
@@ -27,20 +28,12 @@ import { claimPatient, getMyPatients } from '@/src/api/therapist';
 import type { TherapistPatientItem } from '@/src/types/api';
 
 const GREEN = '#2E7D32';
-const APHASIA_TYPES = ['Broca', 'Wernicke', 'Anomic', 'Global', 'Conduction', 'Mixed', 'Khác'];
-const SEVERITIES = ['Nhẹ', 'Trung bình', 'Nặng'];
 
 export default function DoctorPatientsScreen() {
   const router = useRouter();
 
-  // ── Form claim (khớp bệnh nhân theo SĐT — Mô hình A) ──
+  // ── Form claim tối giản: CHỈ số điện thoại ──
   const [phoneInput, setPhoneInput] = useState('');
-  const [aphasia, setAphasia] = useState<string | null>(null);
-  const [severity, setSeverity] = useState<string | null>(null);
-  const [hospital, setHospital] = useState('');
-  const [accuracy, setAccuracy] = useState('');
-  const [completion, setCompletion] = useState('');
-  const [fluency, setFluency] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -57,13 +50,6 @@ export default function DoctorPatientsScreen() {
   }, []);
   useEffect(loadList, [loadList]);
 
-  function parseScore(s: string): number | undefined {
-    const t = s.trim();
-    if (!t) return undefined;
-    const n = Number(t);
-    return Number.isFinite(n) ? n : undefined;
-  }
-
   async function onSubmit() {
     if (!phoneInput.trim()) {
       setMessage({ ok: false, text: 'Vui lòng nhập số điện thoại bệnh nhân.' });
@@ -72,15 +58,9 @@ export default function DoctorPatientsScreen() {
     setSubmitting(true);
     setMessage(null);
     try {
-      const res = await claimPatient({
-        phone: phoneInput.trim(), // backend tự chuẩn hóa (+84/chấm/khoảng trắng đều nhận)
-        aphasia_type: aphasia ?? undefined,
-        severity_level: severity ?? undefined,
-        hospital_name: hospital.trim() || undefined,
-        accuracy_score: parseScore(accuracy),
-        completion_score: parseScore(completion),
-        fluency_score: parseScore(fluency),
-      });
+      // Body CHỈ { phone } — backend tự chuẩn hóa (+84/chấm/khoảng trắng đều nhận);
+      // các field hồ sơ khác là optional, không gửi.
+      const res = await claimPatient({ phone: phoneInput.trim() });
       setMessage({
         ok: true,
         text:
@@ -127,7 +107,7 @@ export default function DoctorPatientsScreen() {
         <Text style={styles.panelTitle}>➕ Nhận bệnh nhân</Text>
         <Text style={styles.hint}>
           Bệnh nhân cần ĐĂNG KÝ tài khoản trên app (kèm số điện thoại) trước; sau đó nhập
-          SĐT của họ để nhận vào danh sách của bạn và điền thông tin chẩn đoán.
+          SĐT của họ để nhận vào danh sách của bạn.
         </Text>
 
         <TextInput
@@ -138,27 +118,6 @@ export default function DoctorPatientsScreen() {
           value={phoneInput}
           onChangeText={setPhoneInput}
         />
-
-        <Text style={styles.fieldLabel}>Loại aphasia</Text>
-        <ChipGroup options={APHASIA_TYPES} value={aphasia} onChange={setAphasia} />
-
-        <Text style={styles.fieldLabel}>Mức độ</Text>
-        <ChipGroup options={SEVERITIES} value={severity} onChange={setSeverity} />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Bệnh viện (tuỳ chọn)"
-          placeholderTextColor="#999"
-          value={hospital}
-          onChangeText={setHospital}
-        />
-
-        <Text style={styles.fieldLabel}>Điểm baseline (tuỳ chọn, 0-100)</Text>
-        <View style={styles.scoreRow}>
-          <TextInput style={[styles.input, styles.scoreInput]} placeholder="Chính xác" placeholderTextColor="#999" keyboardType="numeric" value={accuracy} onChangeText={setAccuracy} />
-          <TextInput style={[styles.input, styles.scoreInput]} placeholder="Hoàn thành" placeholderTextColor="#999" keyboardType="numeric" value={completion} onChangeText={setCompletion} />
-          <TextInput style={[styles.input, styles.scoreInput]} placeholder="Trôi chảy" placeholderTextColor="#999" keyboardType="numeric" value={fluency} onChangeText={setFluency} />
-        </View>
 
         {message ? (
           <Text style={[styles.message, message.ok ? styles.messageOk : styles.messageErr]}>
@@ -202,35 +161,11 @@ export default function DoctorPatientsScreen() {
   );
 }
 
-function ChipGroup({
-  options,
-  value,
-  onChange,
-}: {
-  options: string[];
-  value: string | null;
-  onChange: (v: string | null) => void;
-}) {
-  return (
-    <View style={styles.chipRow}>
-      {options.map((o) => {
-        const active = value === o;
-        return (
-          <Pressable key={o} style={[styles.chip, active && styles.chipActive]} onPress={() => onChange(active ? null : o)}>
-            <Text style={[styles.chipText, active && styles.chipTextActive]}>{o}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   body: { padding: 24, gap: 16 },
   panel: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#e5e9e5', padding: 18, gap: 12 },
   panelTitle: { fontSize: 18, fontWeight: 'bold', color: '#222' },
   hint: { fontSize: 14, color: '#777' },
-  fieldLabel: { fontSize: 14, fontWeight: '600', color: '#444' },
   input: {
     backgroundColor: '#fafafa',
     borderWidth: 1,
@@ -240,13 +175,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize: 15,
   },
-  scoreRow: { flexDirection: 'row', gap: 10 },
-  scoreInput: { flex: 1 },
-  chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  chip: { borderWidth: 1.5, borderColor: '#cfe3d3', borderRadius: 16, paddingVertical: 7, paddingHorizontal: 14, backgroundColor: '#fff' },
-  chipActive: { backgroundColor: GREEN, borderColor: GREEN },
-  chipText: { fontSize: 14, fontWeight: '600', color: '#555' },
-  chipTextActive: { color: '#fff' },
   message: { fontSize: 14, fontWeight: '600' },
   messageOk: { color: GREEN },
   messageErr: { color: '#D64545' },
