@@ -122,7 +122,6 @@ export default function SelectTopicScreen() {
               <Text style={styles.rowIcon}>🎲</Text>
               <View style={styles.rowTextWrap}>
                 <Text style={styles.rowTitle}>Trộn chủ đề</Text>
-                <Text style={styles.rowProgress}>Ngẫu nhiên từ mọi chủ đề</Text>
               </View>
               {starting ? <ActivityIndicator color={PURPLE} /> : <Text style={styles.chevron}>›</Text>}
             </Pressable>
@@ -130,33 +129,26 @@ export default function SelectTopicScreen() {
           {topics.length === 0 ? (
             <Text style={styles.muted}>Chưa có chủ đề nào có bài thuộc dạng này.</Text>
           ) : (
-            topics.map((t) => {
-              const allDone = t.completed_count >= t.total_count;
-              return (
-                <Pressable
-                  key={t.topic}
-                  style={[styles.row, starting && styles.rowDisabled]}
-                  disabled={starting}
-                  onPress={() =>
-                    isSessionFlow
-                      ? onPickForSession(t.topic)
-                      : router.push(
-                          `/(patient)/exercise-list?type=${exerciseType}&topic=${t.topic}`,
-                        )
-                  }
-                >
-                  <Text style={styles.rowIcon}>{TOPIC_ICON[t.topic] ?? '📚'}</Text>
-                  <View style={styles.rowTextWrap}>
-                    <Text style={styles.rowTitle}>{t.topic_display}</Text>
-                    <Text style={[styles.rowProgress, allDone && styles.rowProgressDone]}>
-                      Đã làm {t.completed_count}/{t.total_count} bài
-                      {allDone ? ' ✓' : ''}
-                    </Text>
-                  </View>
-                  <Text style={styles.chevron}>›</Text>
-                </Pressable>
-              );
-            })
+            topics.map((t) => (
+              <Pressable
+                key={t.topic}
+                style={[styles.row, starting && styles.rowDisabled]}
+                disabled={starting}
+                onPress={() =>
+                  isSessionFlow
+                    ? onPickForSession(t.topic)
+                    : router.push(
+                        `/(patient)/exercise-list?type=${exerciseType}&topic=${t.topic}`,
+                      )
+                }
+              >
+                <Text style={styles.rowIcon}>{TOPIC_ICON[t.topic] ?? '📚'}</Text>
+                <View style={styles.rowTextWrap}>
+                  <Text style={styles.rowTitle}>{t.topic_display}</Text>
+                </View>
+                <Text style={styles.chevron}>›</Text>
+              </Pressable>
+            ))
           )}
         </ScrollView>
       )}
@@ -193,7 +185,5 @@ const styles = StyleSheet.create({
   rowIcon: { fontSize: 30 },
   rowTextWrap: { flex: 1, gap: 2 },
   rowTitle: { fontSize: 20, fontWeight: 'bold', color: '#222' },
-  rowProgress: { fontSize: 15, color: '#666' },
-  rowProgressDone: { color: GREEN, fontWeight: '600' },
   chevron: { fontSize: 30, color: PURPLE, fontWeight: 'bold' },
 });
