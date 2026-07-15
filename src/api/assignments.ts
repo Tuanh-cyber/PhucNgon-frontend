@@ -48,14 +48,16 @@ export async function getAssignmentContent(
 export async function submitAssignmentAudio(
   assignmentId: string,
   audioFile: AudioFile,
+  therapySessionId?: string, // optional: gắn lượt làm vào PHIÊN (rule.md mục 3)
 ): Promise<AttemptSubmitResponse> {
-  return submitAttempt(assignmentId, { audioFile });
+  return submitAttempt(assignmentId, { audioFile, therapySessionId });
 }
 
 /** Nộp bài Nghe và đoán (recognition): gửi vocab_id đã chọn, KHÔNG gửi audio. */
 export async function submitAssignmentChoice(
   assignmentId: string,
   selectedVocabId: string,
+  therapySessionId?: string, // optional: gắn lượt làm vào PHIÊN (rule.md mục 3)
 ): Promise<AttemptSubmitResponse> {
-  return submitAttempt(assignmentId, { selectedVocabId });
+  return submitAttempt(assignmentId, { selectedVocabId, therapySessionId });
 }

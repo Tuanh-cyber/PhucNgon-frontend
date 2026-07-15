@@ -1,13 +1,17 @@
 /**
- * Bước 1/3 luồng chọn bài — "Chọn dạng bài tập".
+ * Bước 1/3 luồng chọn bài — "Chọn dạng bài tập" (= CHỌN MODE của rule.md).
  *
  * 4 lựa chọn lớn: Gọi tên / Nghe và đoán / Hoàn thành câu / Trộn cả 3 dạng (type="mixed").
  * Bấm 1 lựa chọn -> /(patient)/select-topic?type={type} (chọn chủ đề TRƯỚC khi ra bài).
  *
+ * ?session=1 (LUỒNG PHIÊN rule.md — vào từ nút chính trang chủ): cờ được chuyển tiếp
+ * sang select-topic; ở đó chọn topic sẽ POST /sessions/start thay vì mở danh sách bài.
+ * KHÔNG có cờ -> luồng cũ y nguyên (tab "Bài tập" của BottomNav vẫn đi lối cũ).
+ *
  * Style: nút to, chữ to, tương phản cao — người lớn tuổi dễ bấm.
  */
 
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BottomNav } from '@/src/components/BottomNav';
@@ -39,6 +43,8 @@ const OPTIONS: { type: string; icon: string; title: string; subtitle: string }[]
 
 export default function SelectTypeScreen() {
   const router = useRouter();
+  const { session } = useLocalSearchParams<{ session?: string }>();
+  const sessionSuffix = session ? '&session=1' : '';
 
   return (
     <View style={styles.screen}>
@@ -57,7 +63,9 @@ export default function SelectTypeScreen() {
             <Pressable
               key={o.type}
               style={[styles.option, isMixed && styles.optionMixed]}
-              onPress={() => router.push(`/(patient)/select-topic?type=${o.type}`)}
+              onPress={() =>
+                router.push(`/(patient)/select-topic?type=${o.type}${sessionSuffix}`)
+              }
             >
               <Text style={styles.optionIcon}>{o.icon}</Text>
               <View style={styles.optionTextWrap}>

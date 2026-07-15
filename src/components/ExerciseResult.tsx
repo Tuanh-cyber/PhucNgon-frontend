@@ -88,6 +88,8 @@ export function ExerciseResult({
   onBack,
   isLast,
   error,
+  alwaysAllowRetry = false,
+  onStopSession,
 }: {
   result: AttemptSubmitResponse;
   canPlayRecording: boolean;
@@ -97,6 +99,10 @@ export function ExerciseResult({
   onBack: () => void;
   isLast: boolean;
   error?: string | null;
+  /** LUỒNG PHIÊN (rule.md mục 2): luôn cho "Làm lại" kể cả khi ĐÃ ĐẠT. */
+  alwaysAllowRetry?: boolean;
+  /** LUỒNG PHIÊN: có truyền -> hiện nút "Dừng phiên" (sang màn tổng kết). */
+  onStopSession?: () => void;
 }) {
   const pill = statusPill(result);
   const hasNumericScore = result.score != null;
@@ -187,11 +193,13 @@ export function ExerciseResult({
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {/* SEN chưa đạt -> cho thử lại */}
-        {!result.is_final ? (
+        {/* Chưa đạt (SEN retry) HOẶC luồng phiên (rule.md: retry cả khi đã đạt) -> cho làm lại */}
+        {!result.is_final || alwaysAllowRetry ? (
           <Pressable style={[styles.actionBtn, styles.retryBtn]} onPress={onRetry}>
             <Text style={styles.actionBtnText}>
-              🔁 Thử lại (lần {result.attempt_number + 1})
+              {result.is_final
+                ? '🔁 Làm lại bài này'
+                : `🔁 Thử lại (lần ${result.attempt_number + 1})`}
             </Text>
           </Pressable>
         ) : null}
@@ -199,6 +207,13 @@ export function ExerciseResult({
         <Pressable style={styles.actionBtn} onPress={onNext}>
           <Text style={styles.actionBtnText}>{isLast ? 'Hoàn thành' : 'Bài tiếp theo →'}</Text>
         </Pressable>
+
+        {/* Luồng phiên: dừng giữa chừng bất cứ lúc nào -> tổng kết phiên */}
+        {onStopSession ? (
+          <Pressable style={styles.stopBtn} onPress={onStopSession}>
+            <Text style={styles.stopBtnText}>⏹ Dừng phiên</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -295,5 +310,14 @@ const styles = StyleSheet.create({
     borderBottomColor: '#1B5E3A',
   },
   retryBtn: { backgroundColor: ORANGE, borderBottomColor: '#B86E12' },
+  stopBtn: {
+    borderWidth: 1.5,
+    borderColor: RED,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  stopBtnText: { color: RED, fontSize: 16, fontWeight: 'bold' },
   actionBtnText: { color: '#fff', fontSize: 19, fontWeight: 'bold' },
 });

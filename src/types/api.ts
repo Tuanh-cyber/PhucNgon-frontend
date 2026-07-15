@@ -380,3 +380,37 @@ export interface AppointmentItem {
   note: string | null;
   doctor_name: string;
 }
+
+// ── Phiên tập — /sessions/* (mục 8 API_CONTRACT, rule.md: 1 phiên = 10 bài) ──
+export type SessionMode =
+  | 'naming'
+  | 'command_identification'
+  | 'sentence_building'
+  | 'mixed';
+
+/** POST /sessions/start — response: phiên mới + 10 bài đã chọn. */
+export interface SessionStartResponse {
+  session_id: string;
+  mode: SessionMode;
+  topic: string | null; // null = Mixed Topics
+  vocab_level: number | null;
+  profile: string;
+  planned_count: number;
+  exercises: PlanAssignment[];
+}
+
+/** GET /sessions/{id} + response finish — trạng thái + tiến độ phiên. */
+export interface SessionState {
+  session_id: string;
+  status: 'in_progress' | 'completed' | 'stopped_early';
+  mode: SessionMode;
+  topic: string | null;
+  vocab_level: number | null;
+  profile: string;
+  planned_count: number;
+  completed_count: number; // "x/10"
+  total_retry_count: number;
+  started_at: string;
+  ended_at: string | null;
+  duration_seconds: number | null;
+}

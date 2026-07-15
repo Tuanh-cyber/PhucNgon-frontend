@@ -28,6 +28,7 @@ export interface SubmitAttemptParams {
   audioFile?: AudioFile;
   /** optional — chỉ dùng cho command_identification/recognition. */
   selectedVocabId?: string;
+  therapySessionId?: string;
 }
 
 /**
@@ -45,6 +46,10 @@ export async function submitAttempt(
   }
   if (params.selectedVocabId !== undefined) {
     form.append('selected_vocab_id', params.selectedVocabId);
+  }
+  if (params.therapySessionId !== undefined) {
+    // Phiên tập (rule.md mục 3): gắn lượt làm vào phiên — optional, luồng cũ không gửi.
+    form.append('therapy_session_id', params.therapySessionId);
   }
 
   const res = await apiClient.post<AttemptSubmitResponse>(

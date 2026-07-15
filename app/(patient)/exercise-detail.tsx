@@ -66,11 +66,19 @@ export default function ExerciseDetailScreen() {
     type?: string;
     topic?: string;
     index?: string;
+    sid?: string;    // LUỒNG PHIÊN (rule.md): therapy_session_id
+    ids?: string;    // LUỒNG PHIÊN: 10 assignment_id của phiên, phân tách phẩy (giữ trong URL -> F5 không mất)
+    scores?: string; // LUỒNG PHIÊN: điểm các bài đã xong (phẩy) — cho màn tổng kết tính TB
   }>();
   const assignmentId = params.assignmentId ?? '';
   const exerciseType = params.type ?? 'naming'; // có thể là "mixed" (luồng trộn 3 dạng)
   const topic = params.topic ?? '';             // luồng chọn bài mới truyền topic
   const index = Number(params.index ?? '0');
+
+  // ── LUỒNG PHIÊN (rule.md mục 3) — kích hoạt khi có sid ──
+  const sid = params.sid ?? null;
+  const sessionIds = params.sid && params.ids ? params.ids.split(',') : [];
+  const sessionScores = params.scores ? params.scores.split(',').filter(Boolean) : [];
 
   const [content, setContent] = useState<AssignmentContent | null>(null);
   const [assignments, setAssignments] = useState<PlanAssignment[]>([]);
@@ -100,25 +108,27 @@ export default function ExerciseDetailScreen() {
     recorderRef.current?.cancel();
     recorderRef.current = null;
 
-    // Danh sách bài lấy CÙNG bộ lọc với màn danh sách (type + topic; "mixed" backend
-    // trộn ổn định trong ngày) -> "Bài tiếp theo" đi đúng thứ tự người dùng đang thấy.
+    // LUỒNG PHIÊN: thứ tự bài đã CHỐT trong sessionIds (từ /sessions/start, nằm trong
+    // URL) -> không cần fetch danh sách; chỉ tải nội dung bài.
+    // LUỒNG CŨ: danh sách bài lấy CÙNG bộ lọc với màn danh sách (type + topic).
     Promise.all([
       getAssignmentContent(assignmentId),
-      getAssignmentsByType(exerciseType, topic || undefined),
+      sid ? Promise.resolve(null) : getAssignmentsByType(exerciseType, topic || undefined),
     ])
       .then(([c, list]) => {
         if (!active) return;
         setContent(c);
-        setAssignments(list);
+        if (list) setAssignments(list);
       })
       .catch(() => active && setLoadError('Không tải được nội dung bài. Vui lòng thử lại.'))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignmentId, exerciseType, topic]);
 
-  const total = assignments.length || 10;
+  const total = sid ? sessionIds.length || 10 : assignments.length || 10;
   // "mixed": tiêu đề theo dạng bài THẬT của bài đang làm (từ content), không phải "mixed"
   const title = exerciseDisplayName(
     exerciseType === 'mixed' ? content?.exercise_type ?? 'mixed' : exerciseType,
@@ -236,12 +246,16 @@ export default function ExerciseDetailScreen() {
   }
 
   // ── Submit ─────────────────────────────────────────────────────────────────
+  // LUỒNG PHIÊN: gửi kèm therapy_session_id -> backend gắn lượt làm vào phiên
+  // (tiến độ phiên do BACKEND đếm — GET /sessions/{id} là nguồn sự thật).
   async function submitAudio() {
     if (!audioBlobRef.current) return;
     setSubmitting(true);
     setError(null);
     try {
-      setResult(await submitAssignmentAudio(assignmentId, audioBlobRef.current));
+      setResult(
+        await submitAssignmentAudio(assignmentId, audioBlobRef.current, sid ?? undefined),
+      );
     } catch {
       setError('Không nộp được bài. Vui lòng thử lại.');
     } finally {
@@ -254,7 +268,7 @@ export default function ExerciseDetailScreen() {
     setSubmitting(true);
     setError(null);
     try {
-      setResult(await submitAssignmentChoice(assignmentId, selectedVocabId));
+      setResult(await submitAssignmentChoice(assignmentId, selectedVocabId, sid ?? undefined));
     } catch {
       setError('Không nộp được bài. Vui lòng thử lại.');
     } finally {
@@ -263,13 +277,42 @@ export default function ExerciseDetailScreen() {
   }
 
   function onRetry() {
-    // SEN retry: giữ nguyên bài, xoá kết quả + bản ghi để làm lại (attempt_number tăng ở backend).
+    // Retry: giữ nguyên bài, xoá kết quả + bản ghi để làm lại (attempt_number tăng ở backend).
+    // Luồng phiên: rule.md cho retry CẢ KHI ĐÃ ĐẠT (alwaysAllowRetry ở màn kết quả).
     setResult(null);
     setRecordStatus('idle');
     audioBlobRef.current = null;
   }
 
+  /** LUỒNG PHIÊN: điểm tích lũy (mang trong URL) — màn tổng kết tính điểm TB phiên. */
+  function scoresWithCurrent(): string[] {
+    const s = [...sessionScores];
+    if (result?.score != null) s.push(String(Math.round(result.score)));
+    return s;
+  }
+
+  /** LUỒNG PHIÊN: sang màn tổng kết (finish gọi ở màn đó — bấm Dừng hay hết bài đều qua đây). */
+  function goSummary() {
+    router.replace(
+      `/(patient)/session-summary?sid=${sid}&scores=${scoresWithCurrent().join(',')}`,
+    );
+  }
+
   function onNext() {
+    if (sid) {
+      // LUỒNG PHIÊN: đi theo đúng 10 bài đã chốt lúc /sessions/start
+      const nextId = sessionIds[index + 1];
+      if (nextId) {
+        router.replace(
+          `/(patient)/exercise-detail?assignmentId=${encodeURIComponent(nextId)}&sid=${sid}` +
+            `&ids=${params.ids}&index=${index + 1}&type=${exerciseType}` +
+            `${topic ? `&topic=${topic}` : ''}&scores=${scoresWithCurrent().join(',')}`,
+        );
+      } else {
+        goSummary(); // hết 10 bài -> tổng kết phiên
+      }
+      return;
+    }
     const next = assignments[index + 1];
     if (next) {
       router.replace(
@@ -309,6 +352,7 @@ export default function ExerciseDetailScreen() {
     content.exercise_type === 'command_identification' && content.mode === 'recognition';
 
   // Đã nộp bài -> hiện MÀN KẾT QUẢ (đọc 100% từ response submit, không gọi stats).
+  // LUỒNG PHIÊN: luôn cho "Làm lại" (rule.md — retry cả khi đã đạt) + nút "Dừng phiên".
   if (result) {
     return (
       <ExerciseResult
@@ -317,22 +361,25 @@ export default function ExerciseDetailScreen() {
         onPlayRecording={onPlayback}
         onRetry={onRetry}
         onNext={onNext}
-        onBack={() => router.back()}
+        onBack={sid ? goSummary : () => router.back()}
         isLast={index + 1 >= total}
         error={error}
+        alwaysAllowRetry={sid !== null}
+        onStopSession={sid ? goSummary : undefined}
       />
     );
   }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* Header chung */}
+      {/* Header chung — luồng phiên: ✕ = Dừng phiên (sang tổng kết), tiến độ "Bài X/10" */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable onPress={sid ? goSummary : () => router.back()} hitSlop={12}>
           <Text style={styles.close}>✕</Text>
         </Pressable>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.counter}>
+          {sid ? 'Bài ' : ''}
           {index + 1}/{total}
         </Text>
       </View>

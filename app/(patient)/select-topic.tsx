@@ -3,7 +3,12 @@
  *
  * Nhận param type (naming/command_identification/sentence_building/mixed).
  * Gọi getTopics(type) -> list topic THẬT SỰ có bài (topic_display + tiến độ đã làm/tổng).
- * Bấm 1 topic -> /(patient)/exercise-list?type={type}&topic={topic}.
+ *
+ * 2 chế độ theo cờ ?session=1:
+ *   - LUỒNG CŨ (không cờ): bấm topic -> /(patient)/exercise-list?type&topic (y nguyên).
+ *   - LUỒNG PHIÊN (rule.md): thêm card "🎲 Trộn chủ đề" (Mixed Topics = không truyền
+ *     topic); chọn xong -> POST /sessions/start -> nhận session_id + 10 bài -> vào màn
+ *     làm bài của phiên (exercise-detail?sid=...&ids=... — ids = 10 assignment theo thứ tự).
  *
  * Tiến độ tải lại mỗi lần màn được focus (làm xong bài quay về thấy số mới).
  */
@@ -20,23 +25,53 @@ import {
 } from 'react-native';
 
 import { getTopics } from '@/src/api/plans';
+import { startSession } from '@/src/api/sessions';
 import { BottomNav } from '@/src/components/BottomNav';
 import { TOPIC_ICON, exerciseDisplayName } from '@/src/constants/exercises';
-import type { TopicSummary } from '@/src/types/api';
+import type { SessionMode, TopicSummary } from '@/src/types/api';
 
 const GREEN = '#2E7D32';
 const PURPLE = '#7C4DFF';
 
 export default function SelectTopicScreen() {
   const router = useRouter();
-  const { type } = useLocalSearchParams<{ type?: string }>();
+  const { type, session } = useLocalSearchParams<{ type?: string; session?: string }>();
   const exerciseType = type ?? 'mixed';
+  const isSessionFlow = session === '1';
   const typeLabel =
     exerciseType === 'mixed' ? 'Trộn cả 3 dạng' : exerciseDisplayName(exerciseType);
 
   const [topics, setTopics] = useState<TopicSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false); // đang POST /sessions/start
+
+  /** LUỒNG PHIÊN: chọn topic (null = Mixed Topics) -> start phiên -> vào bài đầu tiên. */
+  async function onPickForSession(topic: string | null) {
+    if (starting) return;
+    setStarting(true);
+    setError(null);
+    try {
+      const s = await startSession(exerciseType as SessionMode, topic ?? undefined);
+      if (s.exercises.length === 0) {
+        setError('Không có bài nào cho lựa chọn này.');
+        return;
+      }
+      const ids = s.exercises.map((e) => e.assignment_id).join(',');
+      // replace (không push): back từ màn làm bài không quay lại màn chọn topic nữa.
+      router.replace(
+        `/(patient)/exercise-detail?assignmentId=${encodeURIComponent(
+          s.exercises[0].assignment_id,
+        )}&sid=${s.session_id}&ids=${ids}&index=0&type=${exerciseType}${
+          topic ? `&topic=${topic}` : ''
+        }`,
+      );
+    } catch {
+      setError('Không bắt đầu được phiên tập. Vui lòng thử lại.');
+    } finally {
+      setStarting(false);
+    }
+  }
 
   // Tải lại khi màn được focus (quay về từ bài tập -> tiến độ cập nhật)
   useFocusEffect(
@@ -77,6 +112,21 @@ export default function SelectTopicScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.list}>
+          {/* LUỒNG PHIÊN: card Mixed Topics (rule.md — trộn mọi chủ đề, không truyền topic) */}
+          {isSessionFlow && topics.length > 0 ? (
+            <Pressable
+              style={[styles.row, styles.rowMixed, starting && styles.rowDisabled]}
+              onPress={() => onPickForSession(null)}
+              disabled={starting}
+            >
+              <Text style={styles.rowIcon}>🎲</Text>
+              <View style={styles.rowTextWrap}>
+                <Text style={styles.rowTitle}>Trộn chủ đề</Text>
+                <Text style={styles.rowProgress}>Ngẫu nhiên từ mọi chủ đề</Text>
+              </View>
+              {starting ? <ActivityIndicator color={PURPLE} /> : <Text style={styles.chevron}>›</Text>}
+            </Pressable>
+          ) : null}
           {topics.length === 0 ? (
             <Text style={styles.muted}>Chưa có chủ đề nào có bài thuộc dạng này.</Text>
           ) : (
@@ -85,11 +135,14 @@ export default function SelectTopicScreen() {
               return (
                 <Pressable
                   key={t.topic}
-                  style={styles.row}
+                  style={[styles.row, starting && styles.rowDisabled]}
+                  disabled={starting}
                   onPress={() =>
-                    router.push(
-                      `/(patient)/exercise-list?type=${exerciseType}&topic=${t.topic}`,
-                    )
+                    isSessionFlow
+                      ? onPickForSession(t.topic)
+                      : router.push(
+                          `/(patient)/exercise-list?type=${exerciseType}&topic=${t.topic}`,
+                        )
                   }
                 >
                   <Text style={styles.rowIcon}>{TOPIC_ICON[t.topic] ?? '📚'}</Text>
@@ -134,6 +187,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 4,
     borderBottomColor: '#ddd2f5',
   },
+  // Card "Trộn chủ đề" (Mixed Topics) — viền tím đậm nổi bật, đứng đầu danh sách
+  rowMixed: { borderWidth: 2, borderColor: PURPLE, backgroundColor: '#EFE8FF' },
+  rowDisabled: { opacity: 0.5 },
   rowIcon: { fontSize: 30 },
   rowTextWrap: { flex: 1, gap: 2 },
   rowTitle: { fontSize: 20, fontWeight: 'bold', color: '#222' },

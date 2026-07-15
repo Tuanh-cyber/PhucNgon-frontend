@@ -99,7 +99,7 @@ export default function HomeScreen() {
         {/* Nút lớn bắt đầu luồng chọn bài: dạng bài -> chủ đề -> danh sách bài */}
         <Pressable
           style={styles.startBtn}
-          onPress={() => router.push('/(patient)/select-type')}
+          onPress={() => router.push('/(patient)/select-type?session=1')}
         >
           <Text style={styles.startBtnIcon}>🎯</Text>
           <Text style={styles.startBtnText}>Bắt đầu bài tập hôm nay</Text>

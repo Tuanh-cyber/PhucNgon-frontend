@@ -452,6 +452,94 @@ bệnh nhân có tồn tại hay không.
 
 ---
 
+## 7. Appointments — Lịch hẹn
+
+Múi giờ: backend LƯU + TRẢ UTC (ISO 8601) — frontend tự hiển thị giờ địa phương.
+
+### GET `/patients/me/appointments?from=YYYY-MM-DD&to=YYYY-MM-DD`
+Lịch hẹn của bệnh nhân đang đăng nhập trong khoảng ngày (lọc theo `starts_at`).
+`from`/`to` optional — mặc định: từ đầu THÁNG TRƯỚC đến hết THÁNG SAU. Sắp theo `starts_at`.
+Yêu cầu đăng nhập, role = patient.
+```json
+[
+  {
+    "appointment_id": "uuid",
+    "starts_at": "2026-07-20T02:00:00Z", "ends_at": "2026-07-20T03:00:00Z",
+    "location": "BV Chợ Rẫy", "room": "P.204", "note": "Tái khám định kỳ",
+    "doctor_name": "BS. Trần Thanh Phúc"
+  }
+]
+```
+`room`/`note` có thể `null`. Chưa có lịch -> `[]` (không 404).
+
+### POST `/therapist/patients/{patient_id}/appointments`
+Bác sĩ đặt lịch cho 1 bệnh nhân CỦA MÌNH (mask get_owned_patient — bệnh nhân của bác sĩ
+khác/tự do → **404** đồng nhất). Yêu cầu đăng nhập, role = therapist.
+```json
+{
+  "starts_at": "2026-07-20T02:00:00Z", "ends_at": "2026-07-20T03:00:00Z",
+  "location": "BV Chợ Rẫy", "room": "P.204", "note": "Tái khám định kỳ"
+}
+```
+- `room`/`note` optional. **422** nếu `ends_at <= starts_at`.
+- **200**: trả lịch vừa tạo (shape giống phần tử GET ở trên, kèm `doctor_name` = tên bác sĩ đặt).
+
+---
+
+## 8. Sessions — Phiên tập (rule.md mục 3: 1 phiên = 10 bài)
+
+Tầng BAO NGOÀI luồng làm bài: bài vẫn nộp qua `/assignments/{id}/submit` như cũ; kèm
+`therapy_session_id` (optional, form field) thì lượt làm được GẮN vào phiên. KHÔNG kèm →
+luồng cũ, chạy y nguyên. Cả 3 endpoint yêu cầu role = patient.
+
+### POST `/sessions/start`
+```json
+{ "mode": "mixed", "topic": "food_drink" }
+```
+- `mode` ∈ `naming|command_identification|sentence_building|mixed`. `topic` optional —
+  bỏ trống = **Mixed Topics** (trộn mọi chủ đề); giá trị lạ → 422.
+- Chọn 10 bài từ plan active (ưu tiên bài CHƯA làm xong); `mode=mixed` trộn đều 3 dạng,
+  ổn định trong ngày (TODO: weighted theo profile ở giai đoạn sau).
+
+**200:**
+```json
+{
+  "session_id": "uuid", "mode": "mixed", "topic": null,
+  "vocab_level": null, "profile": "broca_like", "planned_count": 10,
+  "exercises": [ { "assignment_id": "uuid", "exercise_id": "uuid", "exercise_type": "naming",
+                   "topic": "food_drink", "order_index": 0, "status": "pending" } ]
+}
+```
+- `profile`: snapshot lúc tạo phiên (`broca_like|wernicke_like|mixed` — suy từ aphasia_type).
+- `vocab_level`: level TopicProgress của topic lúc bắt đầu; `null` khi Mixed Topics
+  (level theo TỪNG BÀI — topic của bài nào lấy level topic đó).
+**404** chưa có plan; **409** không có bài nào cho lựa chọn.
+
+### POST `/assignments/{id}/submit` — field mới (optional)
+Form field `therapy_session_id`: có gửi → lượt làm gắn vào phiên + cập nhật tiến độ.
+Phiên không tồn tại / của người khác / ĐÃ KẾT THÚC → **404** "Không tìm thấy phiên tập
+đang mở" (validate TRƯỚC khi chấm). Không gửi → hành vi y hệt trước đây.
+
+### POST `/sessions/{id}/finish`
+Kết thúc phiên: đủ `planned_count` bài graded → `"completed"`; chưa đủ → `"stopped_early"`
+(bệnh nhân dừng sớm — hợp lệ theo rule). Tính `duration_seconds = ended_at - started_at`.
+Phiên đã kết thúc → **409**. Response = shape GET dưới đây.
+
+### GET `/sessions/{id}`
+```json
+{
+  "session_id": "uuid", "status": "in_progress", "mode": "mixed", "topic": null,
+  "vocab_level": null, "profile": "broca_like",
+  "planned_count": 10, "completed_count": 2, "total_retry_count": 1,
+  "started_at": "2026-07-15T02:00:00Z", "ended_at": null, "duration_seconds": null
+}
+```
+- `completed_count` = số bài ĐÃ KẾT THÚC (graded) trong phiên → hiển thị "x/10".
+- `total_retry_count` = tổng số lượt làm THÊM (sau lượt đầu) của mọi bài trong phiên.
+- Counters TÍNH LẠI TỪ DB (không drift). Phiên của người khác → **404**.
+
+---
+
 ## Quy tắc chung cho mọi API
 
 - Mọi lỗi trả về dạng: `{ "detail": "Nội dung lỗi bằng tiếng Việt" }`
