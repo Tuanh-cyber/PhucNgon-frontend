@@ -546,6 +546,61 @@ cao. Bảng + logic giữ nguyên để bật lại khi đủ vocab theo level.
 
 ---
 
+## 9. Logic Sequence — dạng bài sắp xếp ảnh (GĐ2: lấy bài + nộp + phiên)
+
+Sắp xếp 3-5 ảnh theo đúng trình tự (kéo-thả). KHÁC modality bài nói: KHÔNG ASR, không
+topic. Chấm NHỊ PHÂN đường "non-weight" — điểm đơn ghi `SessionResult.score`, không có 3
+thành phần accuracy/completion/fluency. Đường nộp TÁCH RIÊNG khỏi submit bài nói.
+Cả 2 endpoint yêu cầu role = patient.
+
+### GET `/logic-sequence/{exercise_id}`
+```json
+{
+  "exercise_id": "uuid", "exercise_type": "logic_sequence",
+  "title": "Trồng cây", "level": 1, "step_count": 3,
+  "instruction_audio_url": "/static/sequence/instruction_audio.wav",
+  "steps": [ { "step_id": "uuid", "image_url": "/static/sequence/level1/plant2.jpg" } ]
+}
+```
+- `steps` ĐÃ XÁO Ở SERVER (mỗi lần gọi xáo lại) — client chỉ thấy `step_id` + ảnh,
+  **KHÔNG BAO GIỜ lộ `step_order` đúng** trong content.
+
+### POST `/logic-sequence/{exercise_id}/submit`
+```json
+{ "ordered_step_ids": ["uuid1", "uuid2", "uuid3"], "therapy_session_id": "uuid (optional)" }
+```
+**200:**
+```json
+{
+  "score": 100, "result": "correct", "completed": true, "attempt_number": 1,
+  "step_feedback": [ { "step_id": "uuid", "position": 1, "correct": true } ],
+  "correct_order": ["uuid1", "uuid2", "uuid3"]
+}
+```
+- Chấm NHỊ PHÂN: khớp HOÀN TOÀN thứ tự đúng -> `score=100, result="correct",
+  completed=true` (bài tính hoàn thành). Sai >=1 vị trí -> `score=0, result="retry",
+  completed=false` (khuyến khích làm lại — attempt_number tăng dần khi nộp lại).
+- `step_feedback`: từng vị trí bệnh nhân đặt có ĐÚNG VỊ TRÍ TUYỆT ĐỐI không (FE tô
+  xanh/đỏ). `correct_order`: thứ tự đúng — CHỈ trả sau khi nộp.
+- `therapy_session_id` (optional): gắn lượt làm vào phiên -> completed_count phiên đếm
+  đúng x/10. Phiên không tồn tại/của người khác/đã kết thúc -> **404**.
+- **422**: ordered_step_ids thiếu/thừa/chứa id lạ. **404**: bài không tồn tại.
+- Kết quả ghi vào ExerciseSession/SessionResult như bài nói (assignment_id=NULL,
+  logic_sequence_exercise_id=<bài>) — dashboard/phiên dùng chung hạ tầng.
+
+### POST `/sessions/start` với `mode="logic_sequence"`
+- KHÔNG cần `topic` (bỏ qua nếu gửi). Chọn 10/13 bài (trộn seed ổn định trong ngày, mọi
+  level — leveling ngủ đông), ưu tiên bài chưa hoàn thành. `vocab_level=null`.
+- `exercises[]` có field **`exercise_kind`**: `"logic_sequence"` (bài nói = `"speech"`,
+  mặc định — client cũ không cần biết field này). Với logic_sequence: `exercise_id` dùng
+  gọi 2 endpoint trên; `assignment_id` set trùng exercise_id (không có assignment thật);
+  `topic` = `""`.
+
+**Assets tĩnh:** ảnh `/static/sequence/level{1|2|3}/{image_file}`; audio hướng dẫn
+`/static/sequence/instruction_audio.wav`. Level 1/2/3 = 3/4/5 bước.
+
+---
+
 ## Quy tắc chung cho mọi API
 
 - Mọi lỗi trả về dạng: `{ "detail": "Nội dung lỗi bằng tiếng Việt" }`

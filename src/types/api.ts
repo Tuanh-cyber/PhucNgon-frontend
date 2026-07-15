@@ -129,9 +129,12 @@ export interface PlanAssignment {
   assignment_id: string;
   exercise_id: string;
   exercise_type: string;
-  topic: string; // enum value, vd "food_drink"
+  topic: string; // enum value, vd "food_drink"; "" với logic_sequence
   order_index: number;
   status: 'pending' | 'completed';
+  // Modality: "speech" (mặc định) | "logic_sequence" (sắp xếp ảnh — exercise_id dùng
+  // gọi /logic-sequence/{id}; assignment_id trùng exercise_id, không có assignment thật)
+  exercise_kind?: 'speech' | 'logic_sequence';
 }
 
 /** 1 topic CÓ BÀI trong plan — GET /plans/me/topics?type=... */
@@ -386,7 +389,8 @@ export type SessionMode =
   | 'naming'
   | 'command_identification'
   | 'sentence_building'
-  | 'mixed';
+  | 'mixed'
+  | 'logic_sequence';
 
 /** POST /sessions/start — response: phiên mới + 10 bài đã chọn. */
 export interface SessionStartResponse {
@@ -413,4 +417,33 @@ export interface SessionState {
   started_at: string;
   ended_at: string | null;
   duration_seconds: number | null;
+}
+
+// ── Logic Sequence — /logic-sequence/* (mục 9 API_CONTRACT) ──────────────────
+
+/** 1 bước ảnh ĐÃ XÁO — không có step_order đúng. */
+export interface SequenceStepItem {
+  step_id: string;
+  image_url: string | null;
+}
+
+/** GET /logic-sequence/{exercise_id}. */
+export interface LogicSequenceContent {
+  exercise_id: string;
+  exercise_type: 'logic_sequence';
+  title: string;
+  level: number;
+  step_count: number;
+  instruction_audio_url: string | null;
+  steps: SequenceStepItem[]; // đã xáo ở server, mỗi lần gọi xáo lại
+}
+
+/** POST /logic-sequence/{id}/submit — response (chấm NHỊ PHÂN 100|0). */
+export interface LogicSequenceSubmitResponse {
+  score: number; // 100 | 0
+  result: 'correct' | 'retry';
+  completed: boolean;
+  attempt_number: number;
+  step_feedback: { step_id: string; position: number; correct: boolean }[];
+  correct_order: string[]; // thứ tự ĐÚNG — chỉ trả sau khi nộp
 }
