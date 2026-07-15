@@ -601,6 +601,53 @@ Cả 2 endpoint yêu cầu role = patient.
 
 ---
 
+## 10. Color Recognition — dạng bài chọn màu (GĐ2: lấy bài + nộp + phiên)
+
+Nghe audio hỏi màu -> chạm 1 trong 4 Ô MÀU (vẽ từ hex ở FE, không có ảnh). KHÔNG ASR.
+Chấm NHỊ PHÂN; **sai = "retry"** (cho làm lại — giống logic_sequence). Đường nộp riêng,
+ghi vào ExerciseSession/SessionResult (assignment_id=NULL + color_recognition_exercise_id).
+Cả 2 endpoint yêu cầu role = patient. Định danh bài = **exercise_code** ("CLR001").
+
+### GET `/color-recognition/{exercise_code}`
+```json
+{
+  "exercise_code": "CLR001", "exercise_type": "color_recognition", "level": 1,
+  "instruction_audio_url": "/static/color-audio/red.wav",
+  "question_color_name": "red",
+  "options": [ { "color_id": "COL003", "name": "yellow", "hex_code": "#FFEB3B" } ]
+}
+```
+- `options`: đúng 4 ô = 1 màu ĐÚNG + 3 nhiễu `random` từ 11 màu còn lại, XÁO ở server
+  (mỗi lần gọi khác nhau) — KHÔNG đánh dấu ô đúng.
+- `question_color_name`: caption chữ đọc kèm audio (accessibility — cùng pattern
+  command_text của CMD recognition).
+
+### POST `/color-recognition/{exercise_code}/submit`
+```json
+{ "selected_color_id": "COL001", "therapy_session_id": "uuid (optional)" }
+```
+**200:**
+```json
+{ "score": 100, "result": "correct", "completed": true, "is_correct": true,
+  "attempt_number": 1, "correct_color_id": "COL001" }
+```
+- Đúng màu -> `100/correct/completed=true`. Sai -> `0/retry/completed=false` — nộp lại
+  được, `attempt_number` tăng (cùng ExerciseSession).
+- `correct_color_id` CHỈ lộ sau khi nộp (FE tô xanh ô đúng + đỏ ô đã chọn).
+- **422**: selected_color_id không tồn tại. **404**: bài không tồn tại / phiên không mở.
+
+### POST `/sessions/start` với `mode="color_recognition"`
+- KHÔNG cần topic. Chọn 10/12 bài (seed ổn định trong ngày, ưu tiên chưa hoàn thành).
+  `vocab_level=null`.
+- `exercises[]`: `exercise_kind="color_recognition"` (field giờ có 3 giá trị:
+  `speech | logic_sequence | color_recognition`, default speech); `exercise_id` =
+  exercise_code "CLR..." để gọi 2 endpoint trên; `assignment_id` trùng exercise_code.
+
+**Audio tĩnh:** `/static/color-audio/{instruction_audio}` (vd `red.wav`,
+`light%20blue.wav`). Ô màu KHÔNG có ảnh — FE vẽ `backgroundColor: hex_code`.
+
+---
+
 ## Quy tắc chung cho mọi API
 
 - Mọi lỗi trả về dạng: `{ "detail": "Nội dung lỗi bằng tiếng Việt" }`

@@ -58,27 +58,43 @@ export default function SelectTypeScreen() {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /** Mode "Sắp xếp hình ảnh": KHÔNG qua chọn topic — start phiên ngay rồi vào runner riêng. */
-  async function onPickLogicSequence() {
+  /** Các mode MODALITY MỚI (sắp xếp ảnh / chọn màu): KHÔNG qua chọn topic —
+   * start phiên ngay rồi vào runner riêng của dạng đó. */
+  async function onPickDirectMode(
+    mode: 'logic_sequence' | 'color_recognition',
+    route: string,
+    emptyMsg: string,
+  ) {
     if (starting) return;
     setStarting(true);
     setError(null);
     try {
-      const s = await startSession('logic_sequence');
+      const s = await startSession(mode);
       if (s.exercises.length === 0) {
-        setError('Chưa có bài sắp xếp nào.');
+        setError(emptyMsg);
         return;
       }
       const ids = s.exercises.map((e) => e.exercise_id).join(',');
-      router.replace(
-        `/(patient)/logic-sequence-exercise?sid=${s.session_id}&ids=${ids}&index=0`,
-      );
+      router.replace(`${route}?sid=${s.session_id}&ids=${ids}&index=0`);
     } catch {
       setError('Không bắt đầu được phiên. Vui lòng thử lại.');
     } finally {
       setStarting(false);
     }
   }
+
+  const onPickLogicSequence = () =>
+    onPickDirectMode(
+      'logic_sequence',
+      '/(patient)/logic-sequence-exercise',
+      'Chưa có bài sắp xếp nào.',
+    );
+  const onPickColorRecognition = () =>
+    onPickDirectMode(
+      'color_recognition',
+      '/(patient)/color-recognition-exercise',
+      'Chưa có bài nhận diện màu nào.',
+    );
 
   return (
     <View style={styles.screen}>
@@ -137,6 +153,29 @@ export default function SelectTypeScreen() {
           </Pressable>
         ) : null}
 
+        {/* Dạng NHẬN DIỆN MÀU SẮC — cùng khuôn sắp xếp ảnh: chỉ ở luồng phiên,
+            start ngay, BỎ QUA chọn topic. */}
+        {isSessionFlow ? (
+          <Pressable
+            style={[styles.option, styles.optionColor, starting && styles.optionDisabled]}
+            disabled={starting}
+            onPress={onPickColorRecognition}
+          >
+            <Text style={styles.optionIcon}>🎨</Text>
+            <View style={styles.optionTextWrap}>
+              <Text style={[styles.optionTitle, styles.optionTitleColor]}>
+                Nhận diện màu sắc
+              </Text>
+              <Text style={styles.optionSubtitle}>Nghe câu hỏi rồi chạm đúng ô màu</Text>
+            </View>
+            {starting ? (
+              <ActivityIndicator color="#E8912D" />
+            ) : (
+              <Text style={[styles.chevron, styles.optionTitleColor]}>›</Text>
+            )}
+          </Pressable>
+        ) : null}
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
 
@@ -150,6 +189,9 @@ const styles = StyleSheet.create({
   // Card 'Sắp xếp hình ảnh' — xanh dương phân biệt modality mới
   optionSequence: { borderWidth: 2, borderColor: '#1976D2', backgroundColor: '#E9F2FE' },
   optionTitleSequence: { color: '#1976D2' },
+  // Card 'Nhận diện màu sắc' — cam phân biệt modality màu
+  optionColor: { borderWidth: 2, borderColor: '#E8912D', backgroundColor: '#FFF4E5' },
+  optionTitleColor: { color: '#E8912D' },
   optionDisabled: { opacity: 0.5 },
   error: { color: '#D64545', fontSize: 14, textAlign: 'center' },
   header: { padding: 20, gap: 6 },

@@ -132,9 +132,10 @@ export interface PlanAssignment {
   topic: string; // enum value, vd "food_drink"; "" với logic_sequence
   order_index: number;
   status: 'pending' | 'completed';
-  // Modality: "speech" (mặc định) | "logic_sequence" (sắp xếp ảnh — exercise_id dùng
-  // gọi /logic-sequence/{id}; assignment_id trùng exercise_id, không có assignment thật)
-  exercise_kind?: 'speech' | 'logic_sequence';
+  // Modality: "speech" (mặc định) | "logic_sequence" (exercise_id = UUID gọi
+  // /logic-sequence/{id}) | "color_recognition" (exercise_id = code "CLR..." gọi
+  // /color-recognition/{code}). assignment_id với 2 dạng mới trùng exercise_id.
+  exercise_kind?: 'speech' | 'logic_sequence' | 'color_recognition';
 }
 
 /** 1 topic CÓ BÀI trong plan — GET /plans/me/topics?type=... */
@@ -390,7 +391,8 @@ export type SessionMode =
   | 'command_identification'
   | 'sentence_building'
   | 'mixed'
-  | 'logic_sequence';
+  | 'logic_sequence'
+  | 'color_recognition';
 
 /** POST /sessions/start — response: phiên mới + 10 bài đã chọn. */
 export interface SessionStartResponse {
@@ -446,4 +448,33 @@ export interface LogicSequenceSubmitResponse {
   attempt_number: number;
   step_feedback: { step_id: string; position: number; correct: boolean }[];
   correct_order: string[]; // thứ tự ĐÚNG — chỉ trả sau khi nộp
+}
+
+// ── Color Recognition — /color-recognition/* (mục 10 API_CONTRACT) ───────────
+
+/** 1 ô màu — VẼ TỪ HEX (View backgroundColor), không có ảnh, không cờ đúng/sai. */
+export interface ColorOption {
+  color_id: string; // "COL001"
+  name: string;
+  hex_code: string; // "#F44336"
+}
+
+/** GET /color-recognition/{exercise_code}. */
+export interface ColorRecognitionContent {
+  exercise_code: string;
+  exercise_type: 'color_recognition';
+  level: number;
+  instruction_audio_url: string | null;
+  question_color_name: string; // caption chữ đọc kèm audio
+  options: ColorOption[]; // 4 ô đã xáo — không lộ ô đúng
+}
+
+/** POST /color-recognition/{code}/submit — response (nhị phân; sai = retry). */
+export interface ColorRecognitionSubmitResponse {
+  score: number; // 100 | 0
+  result: 'correct' | 'retry';
+  completed: boolean;
+  is_correct: boolean;
+  attempt_number: number;
+  correct_color_id: string; // chỉ trả sau khi nộp
 }
