@@ -211,7 +211,10 @@ export default function LogicSequenceExerciseScreen() {
             <Text style={styles.listenBtnText}>🔊 Nghe hướng dẫn</Text>
           </Pressable>
 
-          {/* Lưới ảnh — tap-to-order; sau nộp tô viền theo step_feedback */}
+          {/* Lưới ảnh 2 CỘT — tap-to-order; sau nộp tô viền + nền theo step_feedback.
+              Ảnh dùng CONTAIN (thấy TRỌN nội dung, KHÔNG cắt — bài này phải nhìn đủ
+              hành động mới suy ra thứ tự); phần trống nền trắng. 3 ảnh -> ô to hơn,
+              thường vừa 1 màn; 4-5 ảnh -> ScrollView bọc sẵn, cuộn được. */}
           <View style={styles.grid}>
             {content.steps.map((s) => {
               const orderIdx = picked.indexOf(s.step_id); // -1 = chưa chọn
@@ -222,13 +225,14 @@ export default function LogicSequenceExerciseScreen() {
                   key={s.step_id}
                   style={[
                     styles.cell,
+                    content.step_count <= 3 && styles.cellLarge,
                     orderIdx >= 0 && !result && styles.cellPicked,
                     fb && (fb.correct ? styles.cellCorrect : styles.cellWrong),
                   ]}
                   onPress={() => onTapImage(s.step_id)}
                 >
                   {full ? (
-                    <Image source={{ uri: full }} style={styles.image} resizeMode="cover" />
+                    <Image source={{ uri: full }} style={styles.image} resizeMode="contain" />
                   ) : (
                     <View style={styles.imageMissing}>
                       <Text style={styles.imageMissingIcon}>🖼️</Text>
@@ -314,7 +318,7 @@ export default function LogicSequenceExerciseScreen() {
                             <Image
                               source={{ uri: full }}
                               style={styles.answerImage}
-                              resizeMode="cover"
+                              resizeMode="contain"
                             />
                           ) : (
                             <Text>🖼️</Text>
@@ -389,11 +393,15 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#ddd',
     overflow: 'hidden',
-    backgroundColor: '#f5f5f5',
+    // Nền TRẮNG cho phần trống của contain (ảnh thu vừa trọn khung, không cắt)
+    backgroundColor: '#fff',
   },
+  // 3 ảnh (level 1): ô to hơn — 2 trên 1 dưới, thường vừa 1 màn không cuộn
+  cellLarge: { width: '48%', aspectRatio: 1.15 },
   cellPicked: { borderColor: BLUE },
-  cellCorrect: { borderColor: GREEN, borderWidth: 4 },
-  cellWrong: { borderColor: RED, borderWidth: 4 },
+  // Sau nộp: viền dày + NỀN nhuộm nhạt để màu vẫn đọc rõ dù ảnh contain có khoảng trắng
+  cellCorrect: { borderColor: GREEN, borderWidth: 4, backgroundColor: '#E7F5E9' },
+  cellWrong: { borderColor: RED, borderWidth: 4, backgroundColor: '#FDEAEA' },
   image: { width: '100%', height: '100%' },
   imageMissing: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   imageMissingIcon: { fontSize: 40 },
