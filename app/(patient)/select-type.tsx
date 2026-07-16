@@ -179,7 +179,7 @@ export default function SelectTypeScreen() {
           <Text style={styles.optionIcon}>🎲</Text>
           <View style={styles.optionTextWrap}>
             <Text style={[styles.optionTitle, styles.optionTitleMixed]}>
-              Bài tập hỗn hợp
+              Bài tập tổng hợp
             </Text>
           </View>
           <Text style={[styles.chevron, styles.optionTitleMixed]}>›</Text>
