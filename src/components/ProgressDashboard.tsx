@@ -4,7 +4,7 @@
  *   3a. Biểu đồ đường điểm 7 ngày (daily_scores) — TỰ VẼ bằng View thuần (chấm + đoạn
  *       thẳng xoay bằng transform), KHÔNG cài thư viện chart: nhẹ nhất có thể, chạy
  *       y hệt trên cả Expo Web lẫn native, không lo tương thích SDK.
- *   3b. Chuỗi ngày luyện tập + lịch 30 ngày (active_days_last_30 tô đậm).
+ *   3b. Lịch tháng kiểu Google (daily_scores_30 tô xanh ngày đã luyện) + chuỗi ngày.
  *   3c. "Từ cần chú ý" — tối đa 10 từ hay sai (difficult_words).
  *
  * 3 trạng thái: đang tải (spinner) / lỗi (thông báo + nút thử lại) / rỗng (lời nhắn
@@ -264,7 +264,7 @@ export function ProgressDashboard({
         <LineChart days={data.daily_scores} />
       </View>
 
-      {/* 3b. Lịch luyện tập (heat-map 30 ngày) */}
+      {/* 3b. Lịch tháng luyện tập (kiểu Google, tô xanh ngày đã luyện) */}
       <View style={styles.card}>
         <ActivityCalendar
           dailyScores={data.daily_scores_30}
