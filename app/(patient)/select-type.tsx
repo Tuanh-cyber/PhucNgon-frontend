@@ -28,6 +28,8 @@ import { BottomNav } from '@/src/components/BottomNav';
 const GREEN = '#2E7D32';
 const PURPLE = '#7C4DFF';
 
+// 3 dạng bài NÓI — "Bài tập hỗn hợp" (mixed) render RIÊNG ở CUỐI danh sách
+// (sau Sắp xếp hình ảnh + Nhận diện màu sắc), xem JSX bên dưới.
 const OPTIONS: { type: string; icon: string; title: string; subtitle: string }[] = [
   { type: 'naming', icon: '🎤', title: 'Gọi tên', subtitle: 'Nhìn ảnh và nói tên' },
   {
@@ -41,12 +43,6 @@ const OPTIONS: { type: string; icon: string; title: string; subtitle: string }[]
     icon: '✏️',
     title: 'Hoàn thành câu',
     subtitle: 'Nói to cả câu hoàn chỉnh',
-  },
-  {
-    type: 'mixed',
-    icon: '🎲',
-    title: 'Trộn cả 3 dạng',
-    subtitle: 'Đổi dạng liên tục cho đỡ nhàm',
   },
 ];
 
@@ -107,28 +103,23 @@ export default function SelectTypeScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.list}>
-        {OPTIONS.map((o) => {
-          const isMixed = o.type === 'mixed';
-          return (
-            <Pressable
-              key={o.type}
-              style={[styles.option, isMixed && styles.optionMixed, starting && styles.optionDisabled]}
-              disabled={starting}
-              onPress={() =>
-                router.push(`/(patient)/select-topic?type=${o.type}${sessionSuffix}`)
-              }
-            >
-              <Text style={styles.optionIcon}>{o.icon}</Text>
-              <View style={styles.optionTextWrap}>
-                <Text style={[styles.optionTitle, isMixed && styles.optionTitleMixed]}>
-                  {o.title}
-                </Text>
-                <Text style={styles.optionSubtitle}>{o.subtitle}</Text>
-              </View>
-              <Text style={[styles.chevron, isMixed && styles.optionTitleMixed]}>›</Text>
-            </Pressable>
-          );
-        })}
+        {OPTIONS.map((o) => (
+          <Pressable
+            key={o.type}
+            style={[styles.option, starting && styles.optionDisabled]}
+            disabled={starting}
+            onPress={() =>
+              router.push(`/(patient)/select-topic?type=${o.type}${sessionSuffix}`)
+            }
+          >
+            <Text style={styles.optionIcon}>{o.icon}</Text>
+            <View style={styles.optionTextWrap}>
+              <Text style={styles.optionTitle}>{o.title}</Text>
+              <Text style={styles.optionSubtitle}>{o.subtitle}</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+        ))}
 
         {/* Dạng SẮP XẾP HÌNH ẢNH — CHỈ ở luồng phiên (modality riêng, không có luồng
             danh sách cũ). Bấm -> start phiên NGAY, BỎ QUA bước chọn topic. */}
@@ -175,6 +166,24 @@ export default function SelectTypeScreen() {
             )}
           </Pressable>
         ) : null}
+
+        {/* BÀI TẬP HỖN HỢP (mixed 3 dạng nói) — đặt CUỐI danh sách theo yêu cầu;
+            logic/route/mode giữ nguyên: -> select-topic?type=mixed */}
+        <Pressable
+          style={[styles.option, styles.optionMixed, starting && styles.optionDisabled]}
+          disabled={starting}
+          onPress={() =>
+            router.push(`/(patient)/select-topic?type=mixed${sessionSuffix}`)
+          }
+        >
+          <Text style={styles.optionIcon}>🎲</Text>
+          <View style={styles.optionTextWrap}>
+            <Text style={[styles.optionTitle, styles.optionTitleMixed]}>
+              Bài tập hỗn hợp
+            </Text>
+          </View>
+          <Text style={[styles.chevron, styles.optionTitleMixed]}>›</Text>
+        </Pressable>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
